@@ -8,8 +8,8 @@ permissions:
 
 on:
   # 默认关闭自动同步，仅支持手动触发
-  # schedule:
-  #   - cron: '0 */6 * * *' # every 6 hours
+  schedule:
+    - cron: '0 */6 * * *' # every 6 hours
   workflow_dispatch:
     inputs:
       add_comment:
