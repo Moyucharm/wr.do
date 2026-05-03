@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search") || "";
     const all = searchParams.get("all") || "false";
     const unread = searchParams.get("unread") || "false";
+    const starred = searchParams.get("starred") || "false";
 
     if (all === "true" && user.role === "ADMIN") {
     }
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
       search,
       user.role === "ADMIN" && all === "true",
       unread === "true",
+      starred === "true",
     );
     return NextResponse.json(userEmails, { status: 200 });
   } catch (error) {

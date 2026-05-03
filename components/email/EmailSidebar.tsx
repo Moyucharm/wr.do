@@ -4,12 +4,15 @@ import { useEffect, useState, useTransition } from "react";
 import { User, UserEmail } from "@prisma/client";
 import randomName from "@scaleway/random-name";
 import {
+  AlertTriangle,
   PanelLeftClose,
   PanelRightClose,
   PenLine,
   Search,
   Sparkles,
   SquarePlus,
+  Star,
+  Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -44,6 +47,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
+import GlobalMailSearchModal from "./GlobalMailSearchModal";
 import { SendEmailModal } from "./SendEmailModal";
 
 interface EmailSidebarProps {
@@ -81,6 +85,11 @@ export default function EmailSidebar({
   const [deleteInput, setDeleteInput] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [onlyUnread, setOnlyUnread] = useState(false);
+  const [onlyStarred, setOnlyStarred] = useState(false);
+  const [showClearNonStarredModal, setShowClearNonStarredModal] =
+    useState(false);
+  const [clearConfirmInput, setClearConfirmInput] = useState("");
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   const [pageSize, setPageSize] = useState(15);
 
@@ -90,7 +99,7 @@ export default function EmailSidebar({
     totalInboxCount: number;
     totalUnreadCount: number;
   }>(
-    `/api/email?page=${currentPage}&size=${pageSize}&search=${searchQuery}&all=${isAdminModel}&unread=${onlyUnread}`,
+    `/api/email?page=${currentPage}&size=${pageSize}&search=${searchQuery}&all=${isAdminModel}&unread=${onlyUnread}&starred=${onlyStarred}`,
     fetcher,
     { dedupingInterval: 5000 },
   );
@@ -212,6 +221,74 @@ export default function EmailSidebar({
     });
   };
 
+  const handleToggleStar = async (
+    e: React.MouseEvent,
+    emailId: string,
+    currentStarred: boolean,
+  ) => {
+    e.stopPropagation();
+    // 乐观更新
+    mutate(
+      (prev) =>
+        prev
+          ? {
+              ...prev,
+              list: prev.list.map((item) =>
+                item.id === emailId
+                  ? { ...item, isStarred: !currentStarred }
+                  : item,
+              ),
+            }
+          : prev,
+      { revalidate: false },
+    );
+
+    try {
+      const res = await fetch(`/api/email/${emailId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isStarred: !currentStarred }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to update star status");
+      }
+    } catch (err) {
+      toast.error("Failed to update star status");
+    } finally {
+      mutate();
+    }
+  };
+
+  const handleClearNonStarred = () => {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/email/clear-non-starred", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirm: "DELETE ALL UNSTARRED" }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          toast.success(
+            t("Deleted {n} non-starred emails", {
+              n: json.deletedCount ?? 0,
+            }),
+          );
+          setShowClearNonStarredModal(false);
+          setClearConfirmInput("");
+          mutate();
+        } else {
+          const text = await res.text();
+          toast.error("Failed to clear non-starred emails", {
+            description: text,
+          });
+        }
+      } catch (err) {
+        toast.error("Failed to clear non-starred emails");
+      }
+    });
+  };
+
   const confirmDelete = () => {
     if (!emailToDelete) return;
 
@@ -267,6 +344,24 @@ export default function EmailSidebar({
                 />
                 <Search className="absolute left-2 top-2 size-4 text-gray-500" />
               </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="size-8 lg:size-7"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowSearchModal(true)}
+                    >
+                      <Icons.search
+                        size={15}
+                        className="stroke-muted-foreground"
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("Search all messages")}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
           <Button
@@ -337,7 +432,6 @@ export default function EmailSidebar({
                   "bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-gray-700":
                     onlyUnread,
                 },
-                { "col-span-2": user.role !== "ADMIN" },
               )}
               onClick={() => {
                 setOnlyUnread(!onlyUnread);
@@ -358,6 +452,61 @@ export default function EmailSidebar({
                     <Icons.listFilter className="absolute bottom-1 right-1 size-3" />
                   </TooltipTrigger>
                   <TooltipContent>{t("Filter unread emails")}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            {/* Starred filter */}
+            <div
+              className={cn(
+                "relative flex cursor-pointer flex-col items-center gap-1 rounded-md bg-neutral-100 px-1 pb-1 pt-2 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-gray-700",
+                {
+                  "bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-gray-700":
+                    onlyStarred,
+                },
+                { "col-span-2": user.role !== "ADMIN" },
+              )}
+              onClick={() => setOnlyStarred(!onlyStarred)}
+            >
+              <div className="flex items-center gap-1">
+                <Star
+                  className={cn(
+                    "size-3",
+                    onlyStarred
+                      ? "fill-yellow-400 stroke-yellow-500"
+                      : "",
+                  )}
+                />
+                <p className="line-clamp-1 text-start font-medium">
+                  {t("Starred")}
+                </p>
+              </div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {onlyStarred
+                  ? nFormatter(data ? data.total : 0)
+                  : nFormatter(
+                      data
+                        ? data.list.filter((e: any) => e.isStarred).length
+                        : 0,
+                    )}
+              </p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="absolute bottom-1 right-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowClearNonStarredModal(true);
+                      }}
+                    >
+                      <Trash2 className="size-3 text-red-500 hover:text-red-600" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("Delete all non-starred emails")}
+                  </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
@@ -465,13 +614,53 @@ export default function EmailSidebar({
                   : "",
               )}
             >
-              <span className="w-2/3 truncate" title={email.emailAddress}>
-                {isCollapsed
-                  ? email.emailAddress.slice(0, 1).toLocaleUpperCase()
-                  : email.emailAddress}
+              <span
+                className={cn(
+                  "flex w-2/3 items-center gap-1 truncate",
+                )}
+                title={email.emailAddress}
+              >
+                {!isCollapsed && (email as any).isStarred && (
+                  <Star className="size-3 shrink-0 fill-yellow-400 stroke-yellow-500" />
+                )}
+                <span className="truncate">
+                  {isCollapsed
+                    ? email.emailAddress.slice(0, 1).toLocaleUpperCase()
+                    : email.emailAddress}
+                </span>
               </span>
               {!isCollapsed && (
                 <>
+                  <button
+                    type="button"
+                    aria-label={
+                      (email as any).isStarred
+                        ? t("Unstar email")
+                        : t("Star email")
+                    }
+                    onClick={(e) =>
+                      handleToggleStar(
+                        e,
+                        email.id,
+                        Boolean((email as any).isStarred),
+                      )
+                    }
+                    className={cn(
+                      "ml-auto flex size-5 items-center justify-center rounded border p-1 text-primary hover:bg-neutral-200",
+                      !isMobile && !(email as any).isStarred
+                        ? "hidden group-hover:inline-flex"
+                        : "",
+                    )}
+                  >
+                    <Star
+                      className={cn(
+                        "size-3",
+                        (email as any).isStarred
+                          ? "fill-yellow-400 stroke-yellow-500"
+                          : "",
+                      )}
+                    />
+                  </button>
                   <SendEmailModal
                     emailAddress={selectedEmailAddress}
                     onSuccess={mutate}
@@ -480,7 +669,7 @@ export default function EmailSidebar({
                         className={cn(
                           "size-5 rounded border p-1 text-primary",
                           !isMobile
-                            ? "hidden hover:bg-neutral-200 group-hover:ml-auto group-hover:inline"
+                            ? "hidden hover:bg-neutral-200 group-hover:inline"
                             : "",
                         )}
                       />
@@ -706,6 +895,82 @@ export default function EmailSidebar({
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* 清空非星标邮箱 Modal */}
+      {showClearNonStarredModal && (
+        <Modal
+          showModal={showClearNonStarredModal}
+          setShowModal={(v) => {
+            setShowClearNonStarredModal(v);
+            if (!v) setClearConfirmInput("");
+          }}
+        >
+          <div className="p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex size-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40">
+                <AlertTriangle className="size-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-red-600 dark:text-red-400">
+                {t("Danger zone")}
+              </h2>
+            </div>
+            <p className="mb-2 text-sm font-medium text-neutral-800 dark:text-neutral-200">
+              {t("Delete all non-starred emails")}
+            </p>
+            <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+              {t(
+                "This will permanently delete all non-starred email addresses and their inbox messages",
+              )}
+              . {t("This action cannot be undone")}.
+            </p>
+            <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">
+              {t("To confirm, please type")}{" "}
+              <strong>DELETE ALL UNSTARRED</strong>
+            </p>
+            <Input
+              value={clearConfirmInput}
+              onChange={(e) => setClearConfirmInput(e.target.value)}
+              placeholder="DELETE ALL UNSTARRED"
+              className="mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowClearNonStarredModal(false);
+                  setClearConfirmInput("");
+                }}
+              >
+                {t("Cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleClearNonStarred}
+                disabled={
+                  isPending || clearConfirmInput !== "DELETE ALL UNSTARRED"
+                }
+              >
+                {isPending && (
+                  <Icons.spinner className="mr-1 size-4 animate-spin" />
+                )}
+                {t("Confirm Delete")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 全局邮件搜索 Modal */}
+      {showSearchModal && (
+        <GlobalMailSearchModal
+          show={showSearchModal}
+          setShow={setShowSearchModal}
+          onSelectAddress={(addr) => {
+            onSelectEmail(addr);
+            setShowSearchModal(false);
+          }}
+        />
       )}
     </div>
   );

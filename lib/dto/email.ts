@@ -77,6 +77,7 @@ export async function getAllUserEmails(
   search: string,
   admin: boolean,
   onlyUnread: boolean = false,
+  onlyStarred: boolean = false,
 ) {
   let whereOptions: any = {};
 
@@ -100,6 +101,10 @@ export async function getAllUserEmails(
     };
   }
 
+  if (onlyStarred) {
+    whereOptions.isStarred = true;
+  }
+
   // Fetch paginated UserEmail records
   const userEmailsPromise = prisma.userEmail.findMany({
     where: whereOptions,
@@ -107,6 +112,7 @@ export async function getAllUserEmails(
       id: true,
       userId: true,
       emailAddress: true,
+      isStarred: true,
       createdAt: true,
       updatedAt: true,
       deletedAt: true,
@@ -120,9 +126,7 @@ export async function getAllUserEmails(
     },
     skip: (page - 1) * size,
     take: size,
-    orderBy: {
-      updatedAt: "desc",
-    },
+    orderBy: [{ isStarred: "desc" }, { updatedAt: "desc" }],
   });
 
   const totalPromise = prisma.userEmail.count({
@@ -271,6 +275,53 @@ export async function updateUserEmail(
     where: { id, deletedAt: null },
     data: { emailAddress, updatedAt: new Date().toISOString() },
   });
+}
+
+// 切换 UserEmail 星标状态
+export async function toggleUserEmailStar(
+  id: string,
+  userId: string,
+  isAdmin: boolean,
+  isStarred?: boolean,
+): Promise<UserEmail> {
+  const userEmail = await prisma.userEmail.findFirst({
+    where: isAdmin
+      ? { id, deletedAt: null }
+      : { id, userId, deletedAt: null },
+  });
+
+  if (!userEmail) {
+    throw new Error("User email not found or already deleted");
+  }
+
+  const nextStarred =
+    typeof isStarred === "boolean" ? isStarred : !userEmail.isStarred;
+
+  return prisma.userEmail.update({
+    where: { id },
+    data: { isStarred: nextStarred },
+  });
+}
+
+// 批量删除当前用户所有非星标邮箱（软删除），返回受影响数量
+export async function deleteNonStarredUserEmails(
+  userId: string,
+  isAdmin: boolean,
+): Promise<{ deletedCount: number }> {
+  const where: any = {
+    deletedAt: null,
+    isStarred: false,
+  };
+  if (!isAdmin) {
+    where.userId = userId;
+  }
+
+  const result = await prisma.userEmail.updateMany({
+    where,
+    data: { deletedAt: new Date() },
+  });
+
+  return { deletedCount: result.count };
 }
 
 // 删除 UserEmail (软删除)
@@ -471,6 +522,80 @@ export async function markAllEmailsAsRead(userEmailId: string, userId: string) {
 export async function deleteEmailsByIds(ids: string[]) {
   return prisma.forwardEmail.deleteMany({
     where: { id: { in: ids } },
+  });
+}
+
+/**
+ * 跨当前用户所有邮箱搜索 ForwardEmail
+ * 仅在 subject / from / fromName 字段做模糊匹配（避开大字段 text/html，保证性能）
+ */
+export async function searchForwardEmailsByUser(
+  userId: string,
+  query: string,
+  page: number,
+  size: number,
+  isAdmin: boolean,
+) {
+  if (!query || query.trim().length === 0) {
+    return { list: [], total: 0 };
+  }
+
+  // 先拿到当前用户的所有有效邮箱地址
+  const userEmails = await prisma.userEmail.findMany({
+    where: isAdmin ? {} : { userId, deletedAt: null },
+    select: { emailAddress: true },
+  });
+  const addressList = userEmails.map((e) => e.emailAddress);
+  if (addressList.length === 0) {
+    return { list: [], total: 0 };
+  }
+
+  const where: any = {
+    to: { in: addressList },
+    OR: [
+      { subject: { contains: query, mode: "insensitive" } },
+      { from: { contains: query, mode: "insensitive" } },
+      { fromName: { contains: query, mode: "insensitive" } },
+    ],
+  };
+
+  const [list, total] = await Promise.all([
+    prisma.forwardEmail.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * size,
+      take: size,
+      select: {
+        id: true,
+        from: true,
+        fromName: true,
+        to: true,
+        subject: true,
+        text: true,
+        html: true,
+        date: true,
+        readAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.forwardEmail.count({ where }),
+  ]);
+
+  return { list, total };
+}
+
+// 列出某个用户的所有 UserEmail（用于 API 端点）
+export async function listUserEmailsForApi(userId: string) {
+  return prisma.userEmail.findMany({
+    where: { userId, deletedAt: null },
+    select: {
+      id: true,
+      emailAddress: true,
+      isStarred: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: [{ isStarred: "desc" }, { createdAt: "desc" }],
   });
 }
 

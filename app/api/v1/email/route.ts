@@ -2,10 +2,47 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { checkApiKey } from "@/lib/dto/api-key";
 import { getDomainsByFeature } from "@/lib/dto/domains";
-import { createUserEmail, deleteUserEmailByAddress } from "@/lib/dto/email";
+import {
+  createUserEmail,
+  deleteUserEmailByAddress,
+  listUserEmailsForApi,
+} from "@/lib/dto/email";
 import { getPlanQuota } from "@/lib/dto/plan";
 import { reservedAddressSuffix } from "@/lib/enums";
 import { restrictByTimeRange } from "@/lib/team";
+
+// 列出当前账户所有 UserEmail（包含 isStarred 字段）
+export async function GET(req: NextRequest) {
+  const custom_api_key = req.headers.get("wrdo-api-key");
+  if (!custom_api_key) {
+    return Response.json("Unauthorized", { status: 401 });
+  }
+
+  const user = await checkApiKey(custom_api_key);
+  if (!user?.id) {
+    return Response.json(
+      "Invalid API key. You can get your API key from https://wr.do/dashboard/settings.",
+      { status: 401 },
+    );
+  }
+  if (user.active === 0) {
+    return Response.json("Forbidden", {
+      status: 403,
+      statusText: "Forbidden",
+    });
+  }
+
+  try {
+    const list = await listUserEmailsForApi(user.id);
+    return NextResponse.json(
+      { list, total: list.length },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error listing user emails:", error);
+    return NextResponse.json("Internal Server Error", { status: 500 });
+  }
+}
 
 // 创建新 UserEmail
 export async function POST(req: NextRequest) {
