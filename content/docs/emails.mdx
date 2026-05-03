@@ -76,6 +76,7 @@ On success (Status 201):
   id: string;
   userId: string;
   emailAddress: string;
+  isStarred: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -88,6 +89,48 @@ On success (Status 201):
 - `400 Bad Request`: Missing email address or invalid suffix (less than 5 characters)
 - `403 Forbidden`: Email address quota has been reached
 - `409 Conflict`: Email address already exists
+- `500 Internal Server Error`: Server error
+
+### List Email Addresses
+
+The `GET /api/v1/email` endpoint returns all email addresses owned by the current account, including their starred state.
+
+```bash
+curl -X GET \
+  -H "wrdo-api-key: YOUR_API_KEY" \
+  "https://wr.do/api/v1/email"
+```
+
+#### Authorization Header
+
+- `wrdo-api-key`: You can use your API key to authenticate your requests.
+You can find your API key in your [account settings](/dashboard/settings).
+Add the header `wrdo-api-key: YOUR_API_KEY` to your request.
+
+#### Response
+
+On success (Status 200):
+```json
+{
+  "list": [
+    {
+      "id": "string",
+      "emailAddress": "your-suffix@wr.do",
+      "isStarred": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+Results are sorted with starred addresses first, then by creation time descending.
+
+#### Error Responses
+
+- `401 Unauthorized`: Missing or invalid API key
+- `403 Forbidden`: Account is inactive
 - `500 Internal Server Error`: Server error
 
 ### Get Email Inbox
