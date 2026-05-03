@@ -217,9 +217,10 @@ model ForwardEmail {
 }
 
 model UserEmail {
-  id           String @id @default(uuid())
+  id           String  @id @default(uuid())
   userId       String
-  emailAddress String @unique
+  emailAddress String  @unique
+  isStarred    Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -229,6 +230,7 @@ model UserEmail {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  @@index([userId, isStarred])
   @@index([createdAt])
   @@map("user_emails")
 }

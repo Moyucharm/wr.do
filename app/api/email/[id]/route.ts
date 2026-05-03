@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   deleteUserEmail,
   getUserEmailById,
+  toggleUserEmailStar,
   updateUserEmail,
 } from "@/lib/dto/email";
 import { checkUserStatus } from "@/lib/dto/user";
@@ -61,6 +62,39 @@ export async function PUT(
     }
     if (error.code === "P2002") {
       return NextResponse.json("Email address already exists", { status: 409 });
+    }
+    return NextResponse.json("Internal Server Error", { status: 500 });
+  }
+}
+
+// 切换 UserEmail 的星标状态
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const user = checkUserStatus(await getCurrentUser());
+  if (user instanceof Response) return user;
+
+  const { id } = params;
+  let body: { isStarred?: boolean } = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  try {
+    const updated = await toggleUserEmailStar(
+      id,
+      user.id,
+      user.role === "ADMIN",
+      body.isStarred,
+    );
+    return NextResponse.json(updated, { status: 200 });
+  } catch (error) {
+    console.error("Error toggling star:", error);
+    if (error.message === "User email not found or already deleted") {
+      return NextResponse.json(error.message, { status: 404 });
     }
     return NextResponse.json("Internal Server Error", { status: 500 });
   }

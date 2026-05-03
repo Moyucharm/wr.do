@@ -666,7 +666,22 @@
     "Reply-To": "Reply-To",
     "Attachments": "Attachments",
     "Date": "Date",
-    "Search by from email": "Search by from email"
+    "Search by from email": "Search by from email",
+    "Starred": "Starred",
+    "Star email": "Star email",
+    "Unstar email": "Unstar email",
+    "Delete all non-starred emails": "Delete all non-starred emails",
+    "Deleted {n} non-starred emails": "Deleted {n} non-starred emails",
+    "Danger zone": "Danger zone",
+    "This will permanently delete all non-starred email addresses and their inbox messages": "This will permanently delete all non-starred email addresses and their inbox messages",
+    "This action cannot be undone": "This action cannot be undone",
+    "Search all messages": "Search all messages",
+    "Search across all messages (subject, from)": "Search subject or sender...",
+    "Type to search emails by subject or sender across all your mailboxes": "Type to search emails by subject or sender across all your mailboxes",
+    "No matching emails found": "No matching emails found",
+    "Showing {n} of {total} matching emails": "Showing {n} of {total} matching emails",
+    "Unknown sender": "Unknown sender",
+    "No subject": "No subject"
   },
   "Scrape": {
     "Playground": "Playground",
