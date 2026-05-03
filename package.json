@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma db push --skip-generate --accept-data-loss && next build",
     "turbo": "next dev --turbo",
     "start": "next start",
     "start-docker": "npm-run-all check-db start-server",
