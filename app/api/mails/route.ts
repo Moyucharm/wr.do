@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     const [emails, count] = await prisma.$transaction([
       prisma.forwardEmail.findMany({
         where: { to: mailbox.emailAddress },
-        orderBy: { createdAt: "desc" },
+        orderBy: { cfTempId: "desc" },
         skip: offset,
         take: limit,
       }),

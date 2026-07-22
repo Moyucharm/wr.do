@@ -191,7 +191,9 @@ model ScrapeMeta {
 }
 
 model ForwardEmail {
-  id        String  @id @default(uuid())
+  id       String @id @default(uuid())
+  cfTempId Int    @unique @default(autoincrement()) @map("cf_temp_id")
+
   from      String
   fromName  String
   to        String

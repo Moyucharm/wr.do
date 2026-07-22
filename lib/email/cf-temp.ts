@@ -146,7 +146,7 @@ export function createCfTempRawEmail(email: ForwardEmail) {
 
 export function toCfTempMail(email: ForwardEmail) {
   return {
-    id: email.id,
+    id: email.cfTempId,
     message_id: email.messageId,
     source: email.from,
     address: email.to,
