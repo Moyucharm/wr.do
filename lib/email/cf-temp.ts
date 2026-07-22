@@ -153,7 +153,9 @@ export function createCfTempRawEmail(email: ForwardEmail) {
   const html = email.html || "";
   const text = email.text || (html ? stripHtml(html) : "");
   if (text && html) {
-    const boundary = `wrdo-${email.id.replace(/[^a-z0-9]/gi, "")}`;
+    // Keep boundary free of digit runs so naive OTP extractors do not
+    // treat MIME markers as verification codes.
+    const boundary = `wrdo-${email.id.replace(/[^a-z]/gi, "") || "mail"}`;
     headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
     return [
       ...headers,
