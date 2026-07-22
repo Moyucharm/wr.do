@@ -32,6 +32,16 @@ export async function POST(req: Request) {
     return Response.json("Invalid request body", { status: 400 });
   }
 
+  if (
+    body.enablePrefix !== undefined &&
+    typeof body.enablePrefix !== "boolean"
+  ) {
+    return Response.json("Invalid enablePrefix", { status: 400 });
+  }
+  if (body.enablePrefix) {
+    return Response.json("enablePrefix is not supported", { status: 400 });
+  }
+
   const name =
     typeof body.name === "string"
       ? body.name

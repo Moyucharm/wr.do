@@ -100,6 +100,37 @@ function encodeHeader(value: string) {
   return `=?UTF-8?B?${Buffer.from(sanitized).toString("base64")}?=`;
 }
 
+function formatAddressHeader(value: string) {
+  const formatAddress = (entry: unknown): string | null => {
+    if (typeof entry === "string") {
+      return sanitizeHeader(entry) || null;
+    }
+    if (!entry || typeof entry !== "object") return null;
+
+    const { name, address } = entry as { name?: unknown; address?: unknown };
+    if (typeof address !== "string" || !sanitizeHeader(address)) return null;
+
+    const sanitizedAddress = sanitizeHeader(address);
+    if (typeof name !== "string" || !sanitizeHeader(name)) {
+      return sanitizedAddress;
+    }
+
+    const sanitizedName = sanitizeHeader(name);
+    const displayName = /^[\x20-\x7e]*$/.test(sanitizedName)
+      ? `"${sanitizedName.replace(/(["\\])/g, "\\$1")}"`
+      : encodeHeader(sanitizedName);
+    return `${displayName} <${sanitizedAddress}>`;
+  };
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    const entries = Array.isArray(parsed) ? parsed : [parsed];
+    return entries.map(formatAddress).filter(Boolean).join(", ");
+  } catch {
+    return formatAddress(value) || "";
+  }
+}
+
 function normalizeBody(value: string) {
   return value.replace(/\r?\n/g, "\r\n");
 }
@@ -138,11 +169,13 @@ export function createCfTempRawEmail(email: ForwardEmail) {
     `Date: ${formatDate(email)}`,
   ];
 
-  if (email.cc && email.cc !== "[]") {
-    headers.push(`Cc: ${sanitizeHeader(email.cc)}`);
+  const cc = email.cc ? formatAddressHeader(email.cc) : "";
+  if (cc) {
+    headers.push(`Cc: ${cc}`);
   }
-  if (email.replyTo) {
-    headers.push(`Reply-To: ${sanitizeHeader(email.replyTo)}`);
+  const replyTo = email.replyTo ? formatAddressHeader(email.replyTo) : "";
+  if (replyTo) {
+    headers.push(`Reply-To: ${replyTo}`);
   }
   if (email.messageId) {
     headers.push(`Message-ID: ${sanitizeHeader(email.messageId)}`);

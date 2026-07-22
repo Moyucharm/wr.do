@@ -1,0 +1,11 @@
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@swc/core': true
+  contentlayer2: true
+  esbuild: true
+  maplibre-gl: true
+  prisma: true
+  protobufjs: true
+  sharp: true
