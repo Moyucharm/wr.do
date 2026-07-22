@@ -18,6 +18,32 @@ export function getCfTempCompatId(id: string) {
   return Number.parseInt(hex || "0", 16);
 }
 
+export function parseCfTempPagination(
+  limitValue: string | null,
+  offsetValue: string | null,
+  defaults: { limit?: number; offset?: number } = {},
+) {
+  const defaultLimit = defaults.limit ?? 10;
+  const defaultOffset = defaults.offset ?? 0;
+
+  const parse = (value: string | null, fallback: number) => {
+    if (value === null) return fallback;
+    if (!/^\d+$/.test(value)) return null;
+    return Number.parseInt(value, 10);
+  };
+
+  const limit = parse(limitValue, defaultLimit);
+  const offset = parse(offsetValue, defaultOffset);
+  if (limit === null || limit < 1 || limit > 100) {
+    return { error: "Invalid limit" as const };
+  }
+  if (offset === null || offset < 0) {
+    return { error: "Invalid offset" as const };
+  }
+
+  return { limit, offset };
+}
+
 function getJwtSecret() {
   if (!env.AUTH_SECRET) {
     throw new Error("AUTH_SECRET is required for CF Temp compatibility");

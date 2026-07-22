@@ -1,11 +1,9 @@
 import { prisma } from "@/lib/db";
-import { getCfTempMailbox, toCfTempMail } from "@/lib/email/cf-temp";
-
-function parsePagination(value: string | null, fallback: number) {
-  if (value === null) return fallback;
-  if (!/^\d+$/.test(value)) return null;
-  return Number.parseInt(value, 10);
-}
+import {
+  getCfTempMailbox,
+  parseCfTempPagination,
+  toCfTempMail,
+} from "@/lib/email/cf-temp";
 
 export async function GET(req: Request) {
   const authorization = req.headers.get("authorization");
@@ -14,13 +12,12 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const limit = parsePagination(url.searchParams.get("limit"), 10);
-  const offset = parsePagination(url.searchParams.get("offset"), 0);
-  if (limit === null || limit < 1 || limit > 100) {
-    return Response.json("Invalid limit", { status: 400 });
-  }
-  if (offset === null || offset < 0) {
-    return Response.json("Invalid offset", { status: 400 });
+  const pagination = parseCfTempPagination(
+    url.searchParams.get("limit"),
+    url.searchParams.get("offset"),
+  );
+  if ("error" in pagination) {
+    return Response.json(pagination.error, { status: 400 });
   }
 
   let mailbox;
@@ -36,8 +33,8 @@ export async function GET(req: Request) {
       prisma.forwardEmail.findMany({
         where: { to: mailbox.emailAddress },
         orderBy: { cfTempId: "desc" },
-        skip: offset,
-        take: limit,
+        skip: pagination.offset,
+        take: pagination.limit,
       }),
       prisma.forwardEmail.count({ where: { to: mailbox.emailAddress } }),
     ]);
