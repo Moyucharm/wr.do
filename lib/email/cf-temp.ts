@@ -100,13 +100,23 @@ function encodeHeader(value: string) {
   return `=?UTF-8?B?${Buffer.from(sanitized).toString("base64")}?=`;
 }
 
-function encodeBody(value: string) {
-  return (
-    Buffer.from(value)
-      .toString("base64")
-      .match(/.{1,76}/g)
-      ?.join("\r\n") || ""
-  );
+function normalizeBody(value: string) {
+  return value.replace(/\r?\n/g, "\r\n");
+}
+
+function stripHtml(value: string) {
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function formatDate(email: ForwardEmail) {
@@ -140,8 +150,8 @@ export function createCfTempRawEmail(email: ForwardEmail) {
 
   headers.push("MIME-Version: 1.0");
 
-  const text = email.text || "";
   const html = email.html || "";
+  const text = email.text || (html ? stripHtml(html) : "");
   if (text && html) {
     const boundary = `wrdo-${email.id.replace(/[^a-z0-9]/gi, "")}`;
     headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
@@ -150,24 +160,25 @@ export function createCfTempRawEmail(email: ForwardEmail) {
       "",
       `--${boundary}`,
       'Content-Type: text/plain; charset="UTF-8"',
-      "Content-Transfer-Encoding: base64",
+      "Content-Transfer-Encoding: 8bit",
       "",
-      encodeBody(text),
+      normalizeBody(text),
       `--${boundary}`,
       'Content-Type: text/html; charset="UTF-8"',
-      "Content-Transfer-Encoding: base64",
+      "Content-Transfer-Encoding: 8bit",
       "",
-      encodeBody(html),
+      normalizeBody(html),
       `--${boundary}--`,
       "",
     ].join("\r\n");
   }
 
+  const body = text || html;
   headers.push(
-    `Content-Type: ${html ? "text/html" : "text/plain"}; charset="UTF-8"`,
-    "Content-Transfer-Encoding: base64",
+    `Content-Type: ${html && !text ? "text/html" : "text/plain"}; charset="UTF-8"`,
+    "Content-Transfer-Encoding: 8bit",
   );
-  return [...headers, "", encodeBody(html || text), ""].join("\r\n");
+  return [...headers, "", normalizeBody(body), ""].join("\r\n");
 }
 
 export function toCfTempMail(email: ForwardEmail) {
