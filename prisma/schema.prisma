@@ -194,15 +194,16 @@ model ForwardEmail {
   id       String @id @default(uuid())
   cfTempId Int    @unique @default(autoincrement()) @map("cf_temp_id")
 
-  from      String
-  fromName  String
-  to        String
-  subject   String? @default("No Subject")
-  text      String? @default("")
-  html      String? @default("")
-  date      String? @default("")
-  messageId String? @default("")
-  replyTo   String? @default("")
+  from             String
+  fromName         String
+  to               String
+  subject          String? @default("No Subject")
+  text             String? @default("")
+  html             String? @default("")
+  date             String? @default("")
+  messageId        String? @default("")
+  replyTo          String? @default("")
+  verificationCode String? @map("verification_code")
 
   cc          String? @default("[]")
   headers     String? @default("[]")

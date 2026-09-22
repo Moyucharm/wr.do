@@ -11,7 +11,13 @@ interface CopyButtonProps extends React.HTMLAttributes<HTMLButtonElement> {
   value: string;
 }
 
-export function CopyButton({ value, className, ...props }: CopyButtonProps) {
+export function CopyButton({
+  value,
+  className,
+  children,
+  onClick,
+  ...props
+}: CopyButtonProps) {
   const [hasCopied, setHasCopied] = React.useState(false);
 
   React.useEffect(() => {
@@ -20,7 +26,10 @@ export function CopyButton({ value, className, ...props }: CopyButtonProps) {
     }, 2000);
   }, [hasCopied]);
 
-  const handleCopyValue = (value: string) => {
+  const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+    onClick?.(event);
+    if (event.defaultPrevented) return;
+
     navigator.clipboard.writeText(value);
     setHasCopied(true);
   };
@@ -31,13 +40,15 @@ export function CopyButton({ value, className, ...props }: CopyButtonProps) {
       size="sm"
       variant="ghost"
       className={cn(
-        "z-10 size-[30px] p-1.5 text-foreground hover:border hover:text-foreground dark:text-foreground",
+        "z-10 p-1.5 text-foreground hover:border hover:text-foreground dark:text-foreground",
+        children ? "h-[30px] w-auto gap-1" : "size-[30px]",
         className,
       )}
-      onClick={() => handleCopyValue(value)}
+      onClick={handleClick}
       {...props}
     >
       <span className="sr-only">Copy</span>
+      {children}
       {hasCopied ? (
         <Icons.check className="size-4" />
       ) : (

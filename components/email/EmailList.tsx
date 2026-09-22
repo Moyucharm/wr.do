@@ -10,6 +10,7 @@ import useSWR from "swr";
 import { cn, fetcher, htmlToText } from "@/lib/utils";
 
 import BlurImage from "../shared/blur-image";
+import { CopyButton } from "../shared/copy-button";
 import { Icons } from "../shared/icons";
 import { PaginationWrapper } from "../shared/pagination";
 import { TimeAgoIntl } from "../shared/time-ago";
@@ -312,17 +313,32 @@ export default function EmailList({
                         className="flex-1 cursor-pointer"
                         onClick={() => handleEmailSelection(email.id)}
                       >
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className="w-3/4 truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+                        <div className="mb-1 flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">
                             {email.fromName || email.subject || "Untitled"}
                           </span>
-                          <span className="ml-auto text-xs text-neutral-600 dark:text-neutral-400">
+                          {email.verificationCode && (
+                            <CopyButton
+                              value={email.verificationCode}
+                              title={t("Copy verification code")}
+                              aria-label={t("Copy verification code")}
+                              className="h-7 shrink-0 rounded border px-2 py-1 font-mono text-xs tracking-wide"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {email.verificationCode}
+                            </CopyButton>
+                          )}
+                          <span className="shrink-0 text-xs text-neutral-600 dark:text-neutral-400">
                             <TimeAgoIntl
-                              date={(email.date as any) || email.createdAt}
+                              date={
+                                email.date
+                                  ? new Date(email.date)
+                                  : email.createdAt
+                              }
                             />
                           </span>
                           {email.readAt && (
-                            <Icons.checkCheck className="ml-2 size-3 text-green-600" />
+                            <Icons.checkCheck className="size-3 shrink-0 text-green-600" />
                           )}
                         </div>
                         <div className="mb-0.5 line-clamp-1 w-3/4 truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">

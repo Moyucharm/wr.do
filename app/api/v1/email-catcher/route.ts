@@ -2,6 +2,20 @@ import { getConfiguredEmailDomains } from "@/lib/dto/domains";
 import { OriginalEmail, saveForwardEmail } from "@/lib/dto/email";
 import { getMultipleConfigs } from "@/lib/dto/system-config";
 import { brevoSendEmail } from "@/lib/email/brevo";
+import { extractVerificationCode } from "@/lib/email/verification-code";
+
+interface EmailCatcherConfigs {
+  enable_email_catch_all?: boolean;
+  catch_all_emails?: string;
+  enable_tg_email_push?: boolean;
+  tg_email_bot_token?: string;
+  tg_email_chat_id?: string;
+  tg_email_template?: string;
+  tg_email_target_white_list?: string;
+  enable_email_forward?: boolean;
+  email_forward_targets?: string;
+  email_forward_white_list?: string;
+}
 
 export async function POST(req: Request) {
   try {
@@ -10,7 +24,7 @@ export async function POST(req: Request) {
       return Response.json("No email data received", { status: 400 });
     }
 
-    const configs = await getMultipleConfigs([
+    const configs: EmailCatcherConfigs = await getMultipleConfigs([
       "enable_email_catch_all",
       "catch_all_emails",
       "enable_tg_email_push",
@@ -44,13 +58,19 @@ export async function POST(req: Request) {
   }
 }
 
-async function handleEmailForwarding(data: OriginalEmail, configs: any) {
+async function handleEmailForwarding(
+  data: OriginalEmail,
+  configs: EmailCatcherConfigs,
+) {
   const actions = determineEmailActions(data, configs);
+  const shouldSave =
+    actions.includes("CATCH_ALL") || actions.includes("NORMAL_SAVE");
+  const verificationCode = shouldSave ? extractVerificationCode(data) : null;
 
   const promises: Promise<void>[] = [];
 
   if (actions.includes("CATCH_ALL")) {
-    promises.push(handleCatchAllEmail(data, configs));
+    promises.push(handleCatchAllEmail(data, configs, verificationCode));
   }
 
   if (actions.includes("EXTERNAL_FORWARD")) {
@@ -58,7 +78,7 @@ async function handleEmailForwarding(data: OriginalEmail, configs: any) {
   }
 
   if (actions.includes("NORMAL_SAVE")) {
-    promises.push(handleNormalEmail(data));
+    promises.push(handleNormalEmail(data, verificationCode));
   }
 
   // 并行执行所有操作
@@ -73,7 +93,10 @@ async function handleEmailForwarding(data: OriginalEmail, configs: any) {
   }
 }
 
-function determineEmailActions(data: OriginalEmail, configs: any): string[] {
+function determineEmailActions(
+  data: OriginalEmail,
+  configs: EmailCatcherConfigs,
+): string[] {
   const actions: string[] = [];
 
   // 检查转发白名单
@@ -108,7 +131,7 @@ function determineEmailActions(data: OriginalEmail, configs: any): string[] {
 // 新增：检查邮箱是否在转发白名单中
 function checkForwardWhiteList(
   toEmail: string,
-  whiteListString: string,
+  whiteListString: string | undefined,
 ): boolean {
   // 如果没有配置白名单，则允许所有邮箱（保持向后兼容）
   if (!whiteListString || whiteListString.trim() === "") {
@@ -119,7 +142,11 @@ function checkForwardWhiteList(
   return whiteList.includes(toEmail);
 }
 
-async function handleCatchAllEmail(data: OriginalEmail, configs: any) {
+async function handleCatchAllEmail(
+  data: OriginalEmail,
+  configs: EmailCatcherConfigs,
+  verificationCode: string | null,
+) {
   const validEmails = parseAndValidateEmails(configs.catch_all_emails);
 
   if (validEmails.length === 0) {
@@ -128,13 +155,16 @@ async function handleCatchAllEmail(data: OriginalEmail, configs: any) {
 
   // 转发到内部邮箱（保存转发后的邮件）
   const forwardPromises = validEmails.map((email) =>
-    saveForwardEmail({ ...data, to: email }),
+    saveForwardEmail({ ...data, to: email }, verificationCode),
   );
 
   await Promise.all(forwardPromises);
 }
 
-async function handleExternalForward(data: OriginalEmail, configs: any) {
+async function handleExternalForward(
+  data: OriginalEmail,
+  configs: EmailCatcherConfigs,
+) {
   const validEmails = parseAndValidateEmails(configs.email_forward_targets);
 
   if (validEmails.length === 0) {
@@ -156,8 +186,11 @@ async function handleExternalForward(data: OriginalEmail, configs: any) {
   await brevoSendEmail(options);
 }
 
-async function handleNormalEmail(data: OriginalEmail) {
-  await saveForwardEmail(data);
+async function handleNormalEmail(
+  data: OriginalEmail,
+  verificationCode: string | null,
+) {
+  await saveForwardEmail(data, verificationCode);
 }
 
 function isValidEmail(email: string): boolean {
@@ -165,7 +198,7 @@ function isValidEmail(email: string): boolean {
   return emailRegex.test(email.trim());
 }
 
-function parseAndValidateEmails(emailsString: string): string[] {
+function parseAndValidateEmails(emailsString: string | undefined): string[] {
   if (!emailsString || typeof emailsString !== "string") {
     return [];
   }
@@ -190,7 +223,7 @@ function parseAndValidateEmails(emailsString: string): string[] {
 /*  Pusher   */
 function shouldPushToTelegram(
   email: OriginalEmail,
-  whiteList: string,
+  whiteList: string | undefined,
 ): boolean {
   if (!whiteList || whiteList.trim() === "") {
     return true;
@@ -204,7 +237,10 @@ function shouldPushToTelegram(
   return whiteListArray.includes(email.to);
 }
 
-async function sendToTelegram(email: OriginalEmail, configs: any) {
+async function sendToTelegram(
+  email: OriginalEmail,
+  configs: EmailCatcherConfigs,
+) {
   const { tg_email_bot_token, tg_email_chat_id, tg_email_template } = configs;
 
   if (!tg_email_bot_token || !tg_email_chat_id) {

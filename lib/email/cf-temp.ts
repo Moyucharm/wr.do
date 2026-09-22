@@ -3,6 +3,7 @@ import { jwtVerify, SignJWT } from "jose";
 
 import { env } from "@/env.mjs";
 import { prisma } from "@/lib/db";
+import { stripHtml } from "@/lib/email/html-to-text";
 
 const JWT_ISSUER = "wr.do";
 const JWT_AUDIENCE = "cf-temp";
@@ -133,21 +134,6 @@ function formatAddressHeader(value: string) {
 
 function normalizeBody(value: string) {
   return value.replace(/\r?\n/g, "\r\n");
-}
-
-function stripHtml(value: string) {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&#39;/gi, "'")
-    .replace(/&quot;/gi, '"')
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function formatDate(email: ForwardEmail) {

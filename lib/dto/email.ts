@@ -36,7 +36,10 @@ export interface UserEmailList extends UserEmail {
   email: string;
 }
 
-export async function saveForwardEmail(emailData: OriginalEmail) {
+export async function saveForwardEmail(
+  emailData: OriginalEmail,
+  verificationCode: string | null,
+) {
   const user_email = await prisma.userEmail.findFirst({
     where: {
       emailAddress: emailData.to,
@@ -55,6 +58,7 @@ export async function saveForwardEmail(emailData: OriginalEmail) {
       date: emailData.date,
       messageId: emailData.messageId,
       replyTo: emailData.replyTo,
+      verificationCode,
       cc: emailData.cc,
       headers: "[]",
       attachments: JSON.stringify(emailData.attachments),
@@ -285,9 +289,7 @@ export async function toggleUserEmailStar(
   isStarred?: boolean,
 ): Promise<UserEmail> {
   const userEmail = await prisma.userEmail.findFirst({
-    where: isAdmin
-      ? { id, deletedAt: null }
-      : { id, userId, deletedAt: null },
+    where: isAdmin ? { id, deletedAt: null } : { id, userId, deletedAt: null },
   });
 
   if (!userEmail) {

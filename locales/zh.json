@@ -648,6 +648,7 @@
     "Mask as read": "标记为已读",
     "Delete selected": "删除选中",
     "Waiting for emails": "等待接收邮件",
+    "Copy verification code": "复制验证码",
     "No Email Address Selected": "暂未选择邮箱地址",
     "Please select an email address from the list to view your inbox": "请从列表中选择一个邮箱地址以查看收件箱",
     "Once selected, your emails will appear here automatically": "选择后，您的邮件将自动显示在这里",
