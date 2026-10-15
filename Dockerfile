@@ -7,7 +7,7 @@ RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.9
 
 COPY . .
 
@@ -20,12 +20,12 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.9
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN pnpm run build
+RUN pnpm test:auth && pnpm run build
 
 FROM base AS runner
 
@@ -33,12 +33,12 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.9
 
 ENV NODE_ENV=production
 ENV IS_DOCKER=true
 
-RUN pnpm add npm-run-all dotenv prisma@5.17.0 @prisma/client@5.17.0
+RUN pnpm add npm-run-all dotenv prisma@5.22.0 @prisma/client@5.22.0
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
@@ -50,6 +50,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Check db
 COPY scripts/check-db.js /app/scripts/check-db.js
+COPY scripts/bootstrap-admin.js /app/scripts/bootstrap-admin.js
 
 EXPOSE 3000
 

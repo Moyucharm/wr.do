@@ -12,12 +12,12 @@ import { getCurrentUser } from "@/lib/session";
 // 查询单个 UserEmail
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = checkUserStatus(await getCurrentUser());
   if (user instanceof Response) return user;
 
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const userEmail = await getUserEmailById(id);
@@ -40,12 +40,12 @@ export async function GET(
 // 更新 UserEmail 的 emailAddress
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = checkUserStatus(await getCurrentUser());
   if (user instanceof Response) return user;
 
-  const { id } = params;
+  const { id } = await params;
   const { emailAddress } = await req.json();
 
   if (!emailAddress) {
@@ -70,12 +70,12 @@ export async function PUT(
 // 切换 UserEmail 的星标状态
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = checkUserStatus(await getCurrentUser());
   if (user instanceof Response) return user;
 
-  const { id } = params;
+  const { id } = await params;
   let body: { isStarred?: boolean } = {};
   try {
     body = await req.json();
@@ -103,12 +103,12 @@ export async function PATCH(
 // 删除 UserEmail
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = checkUserStatus(await getCurrentUser());
   if (user instanceof Response) return user;
 
-  const { id } = params;
+  const { id } = await params;
 
   try {
     await deleteUserEmail(id);

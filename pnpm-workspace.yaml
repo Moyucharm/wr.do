@@ -1,3 +1,5 @@
+# pnpm 11+ 读取 allowBuilds；pnpm 10.x 读取 onlyBuiltDependencies。
+# 本机为 pnpm 10.18.3，只认后者，故两套键名并存以同时兼容 10 与 11。
 allowBuilds:
   '@parcel/watcher': true
   '@prisma/client': true
@@ -9,3 +11,15 @@ allowBuilds:
   prisma: true
   protobufjs: true
   sharp: true
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - contentlayer2
+  - esbuild
+  - maplibre-gl
+  - prisma
+  - protobufjs
+  - sharp
