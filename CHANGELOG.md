@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### CF Temp compatibility
+
+- Move mailbox creation and mail listing endpoints into the `/compat/cf-temp` namespace, preserving their existing authentication, request, and response contracts.
+- Add `GET /compat/cf-temp/api/domains`, authenticated with a WR.DO user API Key in `x-admin-auth`, returning email-enabled domain names as a JSON string array without internal configuration.
+- Breaking: remove `/admin/new_address`, `/admin/mails`, and `/api/mails` without forwarding aliases. Update clients to use a Base URL ending in `/compat/cf-temp` and preserve its path prefix. The native `/api/domain` endpoint is unchanged.
+
 ## v1.1.8
 
 ### Security and self-hosting

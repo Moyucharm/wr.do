@@ -150,6 +150,37 @@ pnpm dev
 Generate `AUTH_SECRET` with `openssl rand -base64 32`. Set `BOOTSTRAP_ADMIN_EMAIL` to your own email address and `BOOTSTRAP_ADMIN_PASSWORD` to a password of at least 16 characters before running `pnpm bootstrap-admin`. Remove the bootstrap password from `.env` after setup. Existing administrators with a changed password are retained; the historical default account is disabled only if it still has its original password.
 
 
+## CF Temp compatible API
+
+CF Temp compatibility endpoints live under `/compat/cf-temp` to avoid collisions with native WR.DO endpoints and future upstream routes. Set the client Base URL to `https://mail.example.com/compat/cf-temp`, replacing the hostname with your deployment address.
+
+All paths below are relative to that Base URL:
+
+| Method | Path | Authentication | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/domains` | `x-admin-auth: <WR.DO user API Key>` | Return email-enabled domain names as a JSON string array, such as `["mail.example.com"]`, or `[]` when none are available |
+| POST | `/admin/new_address` | `x-admin-auth: <WR.DO user API Key>` | Create a mailbox and return `jwt`, `address`, and `address_id` |
+| GET | `/admin/mails` | `x-admin-auth: <WR.DO user API Key>` | List the current user's mail; supports `address`, `limit`, and `offset` |
+| GET | `/api/mails` | `Authorization: Bearer <mailbox jwt>` | List mail for that mailbox; supports `limit` and `offset` |
+
+Mailbox creation accepts `name` and `domain`; omit `enablePrefix` or set it to `false`. The `x-admin-auth` value is a WR.DO user API Key, not a Cloudflare account key. Domain discovery does not expose internal configuration or credentials.
+
+**Migration:** The former root endpoints `/admin/new_address`, `/admin/mails`, and `/api/mails` have been removed without forwarding aliases. There was no root `/api/domains`; the new discovery endpoint is available only inside the namespace. The native session-authenticated `/api/domain?feature=email` endpoint is unchanged.
+
+Clients must preserve the Base URL path prefix: the domain request must reach `/compat/cf-temp/api/domains`. `new URL("/api/domains", baseUrl)` discards the entire path prefix. Even `new URL("api/domains", baseUrl)` replaces the final `cf-temp` segment when the Base URL has no trailing `/`, producing the incorrect `/compat/api/domains`.
+
+Prefer appending the documented endpoint path after removing trailing slashes from the Base URL, so configurations with or without a trailing `/` produce the same result:
+
+```js
+const baseUrl = "https://mail.example.com/compat/cf-temp";
+const endpoint = `${baseUrl.replace(/\/+$/, "")}/api/domains`;
+// https://mail.example.com/compat/cf-temp/api/domains
+```
+
+When using the `URL` constructor, the Base URL must end with `/` and the endpoint path must not start with `/`, for example: `new URL("api/domains", baseUrl.replace(/\/+$/, "") + "/")`.
+
+For clients hardcoded to host-root paths, use a dedicated hostname with a reverse proxy mapping requests into `/compat/cf-temp`, rather than adding compatibility aliases at the WR.DO root. Update external client configuration before deployment.
+
 ## Environment Variables
 
 Via [Installation For Developer](https://wr.do/docs/developer).

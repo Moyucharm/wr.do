@@ -195,6 +195,37 @@ pnpm dev
 
 管理员使用 `.env` 中的 `BOOTSTRAP_ADMIN_EMAIL` 和 `BOOTSTRAP_ADMIN_PASSWORD` 初始化。`AUTH_SECRET` 必须是至少 32 字节的随机值。
 
+## CF Temp 兼容 API
+
+CF Temp 兼容接口独立放在 `/compat/cf-temp` 下，避免与 WR.DO 原生接口以及后续上游路由冲突。客户端 Base URL 应设置为 `https://mail.example.com/compat/cf-temp`（将主机名替换为自己的部署地址）。
+
+下表路径均相对于这个 Base URL：
+
+| 方法 | 路径 | 鉴权 | 用途 |
+| --- | --- | --- | --- |
+| GET | `/api/domains` | `x-admin-auth: <WR.DO 用户 API Key>` | 返回启用了邮箱功能的域名字符串数组，如 `["mail.example.com"]`；无可用域名时返回 `[]` |
+| POST | `/admin/new_address` | `x-admin-auth: <WR.DO 用户 API Key>` | 创建邮箱，返回 `jwt`、`address`、`address_id` |
+| GET | `/admin/mails` | `x-admin-auth: <WR.DO 用户 API Key>` | 获取当前用户的邮件；支持 `address`、`limit`、`offset` |
+| GET | `/api/mails` | `Authorization: Bearer <邮箱 jwt>` | 获取对应邮箱的邮件；支持 `limit`、`offset` |
+
+建号请求使用 `name`、`domain`，`enablePrefix` 只能省略或设置为 `false`。`x-admin-auth` 使用 WR.DO 用户 API Key，不是 Cloudflare 账户密钥。域名查询不会返回内部配置或密钥。
+
+**迁移说明：** 原来的 `/admin/new_address`、`/admin/mails`、`/api/mails` 已移除，不提供旧路径转发。此前没有根路径 `/api/domains`，新增查询也仅在命名空间内提供。WR.DO 原生 `/api/domain?feature=email` 仍保持登录会话鉴权，不受影响。
+
+客户端必须保留 Base URL 的路径前缀，例如实际域名请求为 `/compat/cf-temp/api/domains`。`new URL("/api/domains", baseUrl)` 会丢掉整个路径前缀；即使改用 `new URL("api/domains", baseUrl)`，当 Base URL 没有尾部 `/` 时，也会把 `cf-temp` 当作最后一个文件名替换，得到错误的 `/compat/api/domains`。
+
+推荐直接追加约定的接口路径，先移除 Base URL 的尾部斜线，使有无尾部 `/` 的配置都得到相同结果：
+
+```js
+const baseUrl = "https://mail.example.com/compat/cf-temp";
+const endpoint = `${baseUrl.replace(/\/+$/, "")}/api/domains`;
+// https://mail.example.com/compat/cf-temp/api/domains
+```
+
+如果使用 `URL` 构造器，必须同时确保 Base URL 以 `/` 结尾、接口路径不以 `/` 开头，例如 `new URL("api/domains", baseUrl.replace(/\/+$/, "") + "/")`。
+
+如果客户端只能从主机根路径请求，需要在独立域名的反代上将这些请求映射到 `/compat/cf-temp`，不要在 WR.DO 根路径添加兼容转发。部署前需同步修改外部客户端配置。
+
 ## 环境变量
 
 查看 [开发者文档](https://likedo.vercel.app/docs/developer).
